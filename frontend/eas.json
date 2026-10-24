@@ -8,15 +8,15 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REEMPLAZAR-POR-TU-API.onrender.com/api",
-        "EXPO_PUBLIC_AUTH_URL": "https://REEMPLAZAR-POR-TU-API.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://linedu-api.onrender.com/api",
+        "EXPO_PUBLIC_AUTH_URL": "https://linedu-api.onrender.com"
       }
     },
     "production": {
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REEMPLAZAR-POR-TU-API.onrender.com/api",
-        "EXPO_PUBLIC_AUTH_URL": "https://REEMPLAZAR-POR-TU-API.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://linedu-api.onrender.com/api",
+        "EXPO_PUBLIC_AUTH_URL": "https://linedu-api.onrender.com"
       }
     }
   }
