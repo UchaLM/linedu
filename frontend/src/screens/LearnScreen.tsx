@@ -1,11 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
-import { colors } from '../theme/colors';
-import { API_URL } from '../config/api';
+import { useTheme } from '../theme/ThemeContext';
+import type { Palette } from '../theme/colors';
+import { apiFetch } from '../services/api';
+import FeedbackBanner, { FeedbackType } from '../components/FeedbackBanner';
+
+interface Feedback {
+  type: FeedbackType;
+  message: string;
+}
+
+interface ValidateResponse {
+  success: boolean;
+  message: string;
+  xpGained?: number;
+  streakIncremented?: boolean;
+}
 
 export default function LearnScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [selectedBlocks, setSelectedBlocks] = useState<string[]>([]);
   const [availableBlocks, setAvailableBlocks] = useState<any[]>([]);
   const [initialBlocks, setInitialBlocks] = useState<any[]>([]);
@@ -14,6 +30,9 @@ export default function LearnScreen() {
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [validating, setValidating] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [solved, setSolved] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchChallenges();
@@ -22,16 +41,18 @@ export default function LearnScreen() {
   const fetchChallenges = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/challenges/1`); // The backend actually returns all challenges now
-      const data = await res.json();
-      
+      setLoadError(null);
+      // The backend actually returns all challenges now
+      const data = await apiFetch<any[]>('/challenges/1');
+
       if (data && data.length > 0) {
         setChallenges(data);
         loadChallenge(data[0]);
+      } else {
+        setLoadError('There are no challenges yet.');
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Could not connect to the server.');
+      setLoadError(error instanceof Error ? error.message : 'Could not load the challenges.');
     } finally {
       setLoading(false);
     }
@@ -41,67 +62,65 @@ export default function LearnScreen() {
     setInitialBlocks(challenge.blocks);
     setAvailableBlocks(challenge.blocks);
     setSelectedBlocks([]);
+    setFeedback(null);
+    setSolved(false);
   };
 
   const handleSelectBlock = (block: any) => {
+    if (solved) return;
+    setFeedback(null);
     setSelectedBlocks([...selectedBlocks, block.text]);
     setAvailableBlocks(availableBlocks.filter(b => b.id !== block.id));
   };
 
   const handleRemoveBlock = (text: string) => {
+    if (solved) return;
+    setFeedback(null);
     setSelectedBlocks(selectedBlocks.filter(b => b !== text));
     const block = initialBlocks.find(b => b.text === text);
     if (block) setAvailableBlocks([...availableBlocks, block]);
   };
 
+  const goToNextChallenge = () => {
+    if (currentChallengeIndex === challenges.length - 1) {
+      setCurrentChallengeIndex(0);
+      loadChallenge(challenges[0]);
+      setFeedback({ type: 'success', message: 'Lesson complete! You finished all challenges for today.' });
+    } else {
+      const nextIndex = currentChallengeIndex + 1;
+      setCurrentChallengeIndex(nextIndex);
+      loadChallenge(challenges[nextIndex]);
+    }
+  };
+
   const handleRunCommand = async () => {
+    if (solved) return goToNextChallenge();
     if (selectedBlocks.length === 0) return;
-    
+
     const currentChallenge = challenges[currentChallengeIndex];
     const isLast = currentChallengeIndex === challenges.length - 1;
 
     try {
       setValidating(true);
-      const res = await fetch(`${API_URL}/challenges/validate`, {
+      setFeedback(null);
+      const data = await apiFetch<ValidateResponse>('/challenges/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          challengeId: currentChallenge.id,
-          blocks: selectedBlocks,
-          isLast
-        })
+        body: { challengeId: currentChallenge.id, blocks: selectedBlocks, isLast },
       });
-      const data = await res.json();
-      
-      if (data.success) {
-        let msg = `${data.message}\nYou gained ${data.xpGained} XP!`;
-        if (data.streakIncremented) {
-          msg += '\n🔥 Daily Streak Incremented!';
-        }
 
-        Alert.alert('Success!', msg, [
-          { 
-            text: isLast ? 'Finish Lesson' : 'Next Challenge', 
-            onPress: () => {
-              if (isLast) {
-                // Lesson complete, loop back or stay
-                Alert.alert('Lesson Complete!', 'You finished all challenges for today.');
-                setCurrentChallengeIndex(0);
-                loadChallenge(challenges[0]);
-              } else {
-                const nextIndex = currentChallengeIndex + 1;
-                setCurrentChallengeIndex(nextIndex);
-                loadChallenge(challenges[nextIndex]);
-              }
-            }
-          }
-        ]);
+      if (data.success) {
+        let msg = `${data.message} +${data.xpGained} XP`;
+        if (data.streakIncremented) msg += ' · 🔥 Daily streak incremented!';
+        setSolved(true);
+        setFeedback({ type: 'success', message: msg });
       } else {
-        Alert.alert('Oops!', data.message);
+        setFeedback({ type: 'error', message: data.message || 'Incorrect command. Try again.' });
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to validate command.');
+      setFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to validate the command.',
+      });
     } finally {
       setValidating(false);
     }
@@ -111,8 +130,17 @@ export default function LearnScreen() {
 
   if (loading || !currentChallenge) {
     return (
-      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center', gap: 16 }]}>
+        {loadError && !loading ? (
+          <>
+            <FeedbackBanner type="error" message={loadError} />
+            <TouchableOpacity style={[styles.startBtn, styles.startBtnActive, styles.retryBtn]} onPress={fetchChallenges}>
+              <Text style={styles.startBtnTextActive}>RETRY</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <ActivityIndicator size="large" color={colors.primary} />
+        )}
       </SafeAreaView>
     );
   }
@@ -151,7 +179,7 @@ export default function LearnScreen() {
       </View>
 
       {/* Terminal View */}
-      <View style={styles.terminal}>
+      <View style={[styles.terminal, feedback && styles.terminalFeedbackSpacing, feedback?.type === 'error' && styles.terminalError]}>
         <Text style={styles.promptSign}>$</Text>
         <View style={styles.terminalContent}>
           {selectedBlocks.length === 0 ? (
@@ -169,6 +197,12 @@ export default function LearnScreen() {
           )}
         </View>
       </View>
+
+      {feedback && (
+        <View style={styles.feedback}>
+          <FeedbackBanner type={feedback.type} message={feedback.message} />
+        </View>
+      )}
 
       {/* Blocks Grid */}
       <Text style={styles.sectionTitle}>SELECT BLOCKS IN ORDER</Text>
@@ -188,15 +222,17 @@ export default function LearnScreen() {
 
       {/* Action Button */}
       <TouchableOpacity 
-        style={[styles.startBtn, selectedBlocks.length > 0 && styles.startBtnActive]}
+        style={[styles.startBtn, (selectedBlocks.length > 0 || solved) && styles.startBtnActive]}
         onPress={handleRunCommand}
-        disabled={selectedBlocks.length === 0 || validating}
+        disabled={(selectedBlocks.length === 0 && !solved) || validating}
       >
         {validating ? (
-          <ActivityIndicator color={colors.background} />
+          <ActivityIndicator color={colors.onPrimary} />
         ) : (
-          <Text style={[styles.startBtnText, selectedBlocks.length > 0 && styles.startBtnTextActive]}>
-            {selectedBlocks.length > 0 ? 'RUN COMMAND' : 'SELECT BLOCKS TO START'}
+          <Text style={[styles.startBtnText, (selectedBlocks.length > 0 || solved) && styles.startBtnTextActive]}>
+            {solved
+              ? (currentChallengeIndex === challenges.length - 1 ? 'FINISH LESSON' : 'NEXT CHALLENGE')
+              : selectedBlocks.length > 0 ? 'RUN COMMAND' : 'SELECT BLOCKS TO START'}
           </Text>
         )}
       </TouchableOpacity>
@@ -204,7 +240,7 @@ export default function LearnScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -240,7 +276,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   xpBadge: {
-    backgroundColor: 'rgba(57, 255, 20, 0.1)',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -301,6 +337,19 @@ const styles = StyleSheet.create({
     minHeight: 80,
     marginBottom: 30,
   },
+  terminalError: {
+    borderColor: colors.danger,
+  },
+  terminalFeedbackSpacing: {
+    marginBottom: 12,
+  },
+  feedback: {
+    marginBottom: 18,
+  },
+  retryBtn: {
+    paddingHorizontal: 40,
+    marginBottom: 0,
+  },
   promptSign: {
     color: colors.primary,
     fontSize: 16,
@@ -327,7 +376,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   selectedBlockText: {
-    color: colors.background,
+    color: colors.onPrimary,
     fontWeight: 'bold',
     fontFamily: 'monospace',
   },
@@ -378,6 +427,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   startBtnTextActive: {
-    color: colors.background,
+    color: colors.onPrimary,
   }
 });

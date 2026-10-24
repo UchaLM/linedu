@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LINEDU - Aprende la terminal jugando</title>
+  <meta name="description" content="LINEDU enseña comandos de Linux armando bloques, con retos, XP, rachas y ranking.">
+  <style>
+    :root {
+      --bg: #f4f5f7; --card: #ffffff; --text: #111418; --muted: #5f6670; --border: #d3d7dd;
+      --primary: #0b9a2b; --on-primary: #ffffff; --code: #e8eaee;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0a0a; --card: #151515; --text: #ffffff; --muted: #9a9a9a; --border: #333333;
+        --primary: #39ff14; --on-primary: #0a0a0a; --code: #1f1f1f;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 860px; margin: 0 auto; padding: 0 20px 64px; }
+    header { text-align: center; padding: 56px 0 32px; }
+    .logo { font: bold 44px/1 ui-monospace, monospace; color: var(--primary); }
+    h1 { margin: 8px 0 4px; letter-spacing: 6px; font-size: 32px; }
+    .tag { color: var(--muted); margin: 0 0 24px; }
+    .btn { display: inline-block; background: var(--primary); color: var(--on-primary); font-weight: 700; letter-spacing: 1px;
+           padding: 14px 28px; border-radius: 12px; text-decoration: none; }
+    .btn.outline { background: transparent; color: var(--text); border: 1px solid var(--border); margin-left: 8px; }
+    section { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-top: 20px; }
+    h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 1.5px; color: var(--primary); text-transform: uppercase; }
+    ul, ol { padding-left: 22px; margin: 8px 0; }
+    li { margin: 6px 0; }
+    code { background: var(--code); padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 14px; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .grid > div { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .grid strong { display: block; margin-bottom: 4px; }
+    footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 32px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo">$_</div>
+    <h1>LINEDU</h1>
+    <p class="tag">Aprende la terminal de Linux, un bloque a la vez.</p>
+    <!-- REEMPLAZAR: enlace de descarga del APK (por ejemplo el de EAS o un Release de GitHub) -->
+    <a class="btn" id="download" href="REEMPLAZAR-URL-DEL-APK">DESCARGAR APK (Android)</a>
+    <a class="btn outline" href="#como-usar">Cómo usarla</a>
+  </header>
+
+  <section>
+    <h2>¿Qué es?</h2>
+    <p>LINEDU es una aplicación móvil que enseña comandos de la terminal de Linux como si fuera un juego. En cada reto se arma el comando correcto
+       tocando bloques (<code>mv</code>, <code>-i</code>, <code>notes.txt</code>…), se gana experiencia (XP), se mantiene una racha diaria y se compite en un ranking con amigos.</p>
+  </section>
+
+  <section>
+    <h2>El problema que resuelve</h2>
+    <p>Aprender la línea de comandos suele ser árido y da miedo equivocarse en una terminal real. LINEDU permite practicar sin riesgo, con
+       respuesta inmediata, de forma breve y todos los días, y tiene un asistente de IA para resolver dudas.</p>
+  </section>
+
+  <section>
+    <h2>Principales funcionalidades</h2>
+    <div class="grid">
+      <div><strong>Retos con bloques</strong>Armá comandos reales y recibí feedback al instante.</div>
+      <div><strong>XP, nivel y rachas</strong>Un progreso que te motiva a volver cada día.</div>
+      <div><strong>Ranking y amigos</strong>Buscá a otros usuarios, seguilos y compará el avance.</div>
+      <div><strong>Asistente de IA</strong>Un chat que explica comandos y da pistas.</div>
+      <div><strong>Cuenta segura</strong>Email o Google, recuperación de contraseña y huella digital.</div>
+      <div><strong>Avisos</strong>Notificaciones push cuando tu racha está en riesgo.</div>
+      <div><strong>Tema claro y oscuro</strong>Se adapta a tu dispositivo o a tu preferencia.</div>
+      <div><strong>Panel de administración</strong>Los administradores crean, editan y borran retos y gestionan usuarios.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>¿Para quién es?</h2>
+    <p>Estudiantes y curiosos que quieren empezar con Linux y la terminal, y docentes que buscan una herramienta de práctica para sus clases.</p>
+  </section>
+
+  <section id="como-usar">
+    <h2>Cómo instalarla (Android)</h2>
+    <ol>
+      <li>Descargá el archivo <strong>APK</strong> con el botón de arriba desde tu celular.</li>
+      <li>Abrilo. Si Android lo pide, habilitá <em>"Instalar apps de orígenes desconocidos"</em> para tu navegador o gestor de archivos.</li>
+      <li>Tocá <strong>Instalar</strong> y abrí <strong>LINEDU</strong>.</li>
+    </ol>
+    <p><strong>Requisitos:</strong> Android 7 o superior y conexión a internet.
+       La primera vez el servidor puede tardar hasta un minuto en despertar; después responde rápido.</p>
+  </section>
+
+  <section>
+    <h2>Primeros pasos</h2>
+    <ol>
+      <li><strong>Crear una cuenta:</strong> en la pantalla de inicio tocá <em>Sign up</em>, completá nombre, email y contraseña (mínimo 6 caracteres). También podés entrar con Google.</li>
+      <li><strong>Iniciar sesión:</strong> con tu email y contraseña. Si la olvidaste, tocá <em>Forgot your password?</em> y seguí los pasos: te llega un código por email.</li>
+      <li><strong>Aprender:</strong> en <em>Learn</em> armá el comando tocando los bloques y presioná <em>RUN COMMAND</em>.</li>
+      <li><strong>Competir:</strong> en <em>Leaders</em> mirá el ranking, buscá amigos y seguilos.</li>
+      <li><strong>Tu cuenta:</strong> en <em>Profile</em> podés cambiar tu nombre, tu contraseña, el tema y activar la huella digital.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Usuario de prueba</h2>
+    <p>Para probar sin registrarte: <code>test@test.com</code> · contraseña <code>123456</code>.</p>
+    <p>Las credenciales del usuario administrador se entregan en privado al docente.</p>
+  </section>
+
+  <footer>LINEDU · Proyecto final de Construcción de Software · 6.º año</footer>
+</main>
+</body>
+</html>

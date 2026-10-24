@@ -1,81 +1,73 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Challenge } from '@prisma/client';
+import { prisma } from '../lib/prisma';
+import { currentUserId } from '../middleware/auth';
 
-const prisma = new PrismaClient();
+const MAX_BLOCKS = 30;
+const MAX_BLOCK_LENGTH = 100;
 
-const challenges = [
-  {
-    id: 1,
-    instruction: "Move notes.txt to /backup/ in interactive mode",
-    validRegex: "^mv -i notes\\.txt /backup/?$",
-    xpReward: 12,
-    blocks: [ 'mv', '-i', 'notes.txt', '/backup/', 'cp', '-f', 'rm', './backup/' ]
-  },
-  {
-    id: 2,
-    instruction: "Copy the directory /var/log recursively to ./logs",
-    validRegex: "^cp -r /var/log ./logs/?$",
-    xpReward: 15,
-    blocks: [ 'cp', '-r', '/var/log', './logs', 'mv', '-R', 'log', 'rm' ]
-  },
-  {
-    id: 3,
-    instruction: "Remove the directory /tmp/cache and all its contents forcefully",
-    validRegex: "^rm -rf /tmp/cache/?$",
-    xpReward: 15,
-    blocks: [ 'rm', '-rf', '/tmp/cache', '-f', 'del', '/var/cache', 'mkdir', 'rmdir' ]
-  },
-  {
-    id: 4,
-    instruction: "Create a directory path /app/src/components, creating parents as needed",
-    validRegex: "^mkdir -p /app/src/components/?$",
-    xpReward: 12,
-    blocks: [ 'mkdir', '-p', '/app/src/components', 'touch', 'make', '-d', 'src/' ]
-  },
-  {
-    id: 5,
-    instruction: "Make the file script.sh executable for everyone",
-    validRegex: "^chmod \\+x script\\.sh$",
-    xpReward: 20,
-    blocks: [ 'chmod', '+x', 'script.sh', 'chown', '777', '-R', 'execute', 'sh' ]
+export const parseBlocks = (raw: string): string[] => {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((b): b is string => typeof b === 'string') : [];
+  } catch {
+    return [];
   }
-];
-
-export const getChallenge = async (req: Request, res: Response) => {
-  // Return all challenges instead of just one
-  const formattedChallenges = challenges.map(c => ({
-    id: c.id,
-    instruction: c.instruction,
-    xpReward: c.xpReward,
-    blocks: c.blocks.map((text, i) => ({ id: String(i), text }))
-  }));
-  res.json(formattedChallenges);
 };
 
-export const validateCommand = async (req: Request, res: Response) => {
-  const { challengeId, blocks, isLast } = req.body;
-  
-  const command = blocks.join(' ');
-  const challenge = challenges.find(c => c.id === challengeId);
+const toClient = (c: Challenge) => ({
+  id: c.id,
+  instruction: c.instruction,
+  xpReward: c.xpReward,
+  blocks: parseBlocks(c.blocks).map((text, i) => ({ id: String(i), text })),
+});
 
-  if (!challenge) {
-    return res.status(404).json({ error: "Challenge not found" });
+/** Devuelve todos los retos en orden (la app los recorre como una lección). */
+export const getChallenge = async (_req: Request, res: Response) => {
+  try {
+    const challenges = await prisma.challenge.findMany({ orderBy: { id: 'asc' } });
+    res.json(challenges.map(toClient));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const isBlockList = (value: unknown): value is string[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.length <= MAX_BLOCKS &&
+  value.every((b) => typeof b === 'string' && b.length > 0 && b.length <= MAX_BLOCK_LENGTH);
+
+export const validateCommand = async (req: Request, res: Response) => {
+  const { challengeId, blocks, isLast } = req.body ?? {};
+  if (!Number.isInteger(challengeId) || !isBlockList(blocks)) {
+    return res.status(400).json({ error: 'Invalid request.' });
   }
 
-  const regex = new RegExp(challenge.validRegex);
-  const isValid = regex.test(command);
+  try {
+    const challenge = await prisma.challenge.findUnique({ where: { id: challengeId } });
+    if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
 
-  if (isValid) {
-    const user = await prisma.user.findUnique({ where: { email: 'test@test.com' } });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    let isValid = false;
+    try {
+      isValid = new RegExp(challenge.validRegex).test(blocks.join(' '));
+    } catch {
+      console.error('Challenge', challenge.id, 'has an invalid regex');
+      return res.status(500).json({ error: 'This challenge is misconfigured.' });
+    }
+    if (!isValid) return res.json({ success: false, message: 'Incorrect command. Try again.' });
 
-    // Update XP
-    let updateData: any = { xp: { increment: challenge.xpReward } };
+    const user = await prisma.user.findUnique({ where: { id: currentUserId(res) } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Update streak if it's the last mission of the day
+    const updateData: { xp: { increment: number }; streak?: { increment: number }; lastPlay?: Date } = {
+      xp: { increment: challenge.xpReward },
+    };
+
+    // El día se completa al terminar el último reto: se suma la racha una vez por día.
     let streakIncremented = false;
-    if (isLast) {
-      // Very basic streak logic: check if lastPlay was before today
+    if (isLast === true) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const lastPlayDay = new Date(user.lastPlay);
@@ -88,18 +80,10 @@ export const validateCommand = async (req: Request, res: Response) => {
       }
     }
 
-    await prisma.user.update({
-      where: { email: 'test@test.com' },
-      data: updateData
-    });
-
-    res.json({ 
-      success: true, 
-      message: "Correct command!", 
-      xpGained: challenge.xpReward,
-      streakIncremented 
-    });
-  } else {
-    res.json({ success: false, message: "Incorrect command. Try again." });
+    await prisma.user.update({ where: { id: user.id }, data: updateData });
+    res.json({ success: true, message: 'Correct command!', xpGained: challenge.xpReward, streakIncremented });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
   }
 };

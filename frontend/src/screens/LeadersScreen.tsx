@@ -1,32 +1,40 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import FeedbackBanner from '../components/FeedbackBanner';
+import FriendsSearch from '../components/FriendsSearch';
+
+type Scope = 'all' | 'friends';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Trophy } from 'lucide-react-native';
-import { colors } from '../theme/colors';
-import { API_URL } from '../config/api';
+import { useTheme } from '../theme/ThemeContext';
+import type { Palette } from '../theme/colors';
+import { apiFetch } from '../services/api';
 
 export default function LeadersScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [leaders, setLeaders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scope, setScope] = useState<Scope>('all');
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      setError(null);
+      setLeaders(await apiFetch<any[]>(`/users/leaderboard?scope=${scope}`));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load the leaderboard.');
+    } finally {
+      setLoading(false);
+    }
+  }, [scope]);
 
   useFocusEffect(
     useCallback(() => {
       fetchLeaderboard();
-    }, [])
+    }, [fetchLeaderboard])
   );
-
-  const fetchLeaderboard = async () => {
-    try {
-      const res = await fetch(`${API_URL}/users/leaderboard`);
-      const data = await res.json();
-      setLeaders(data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -42,9 +50,25 @@ export default function LeadersScreen() {
         <Trophy color={colors.primary} size={24} />
         <Text style={styles.headerTitle}>Leaderboard</Text>
       </View>
-      <Text style={styles.headerSub}>Weekly ranking • resets in 4d 12h</Text>
+      <View style={styles.scopeRow}>
+        {(['all', 'friends'] as Scope[]).map((option) => (
+          <TouchableOpacity
+            key={option}
+            style={[styles.scopeBtn, scope === option && styles.scopeBtnActive]}
+            onPress={() => setScope(option)}
+          >
+            <Text style={[styles.scopeText, scope === option && styles.scopeTextActive]}>
+              {option === 'all' ? 'EVERYONE' : 'FRIENDS'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContainer}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.listContainer}>
+        {error && <FeedbackBanner type="error" message={error} />}
+        {!error && scope === 'friends' && leaders.length <= 1 && (
+          <Text style={styles.empty}>You are not following anyone yet. Search for friends below.</Text>
+        )}
         {leaders.map((user) => (
           <View 
             key={user.id} 
@@ -72,18 +96,52 @@ export default function LeadersScreen() {
             </Text>
           </View>
         ))}
+
+        <FriendsSearch onFollowChange={fetchLeaderboard} />
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  scopeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  scopeBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  scopeBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  scopeText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  scopeTextActive: {
+    color: colors.primary,
+  },
+  empty: {
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingVertical: 8,
   },
   header: {
     flexDirection: 'row',
@@ -115,7 +173,7 @@ const styles = StyleSheet.create({
   },
   userCardActive: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(57, 255, 20, 0.05)',
+    backgroundColor: colors.primarySoft,
   },
   rankContainer: {
     width: 40,

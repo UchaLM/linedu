@@ -1,12 +1,18 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Lock } from 'lucide-react-native';
-import { colors } from '../theme/colors';
-import { API_URL } from '../config/api';
+import { useTheme } from '../theme/ThemeContext';
+import type { Palette } from '../theme/colors';
+import { apiFetch } from '../services/api';
+import SecuritySection from '../components/SecuritySection';
+import AccountSection from '../components/AccountSection';
+import ThemeSelector from '../components/ThemeSelector';
 
 export default function ProfileScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,9 +24,7 @@ export default function ProfileScreen() {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch(`${API_URL}/users/profile`);
-      const data = await res.json();
-      setProfile(data);
+      setProfile(await apiFetch<any>('/users/profile'));
     } catch (error) {
       console.error(error);
     } finally {
@@ -119,11 +123,11 @@ export default function ProfileScreen() {
               <Text style={styles.legendText}>Done</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#333' }]} />
+              <View style={[styles.legendDot, { backgroundColor: colors.border }]} />
               <Text style={styles.legendText}>Missed</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: '#333' }]} />
+              <View style={[styles.legendDot, { backgroundColor: colors.blockBackground, borderWidth: 1, borderColor: colors.border }]} />
               <Text style={styles.legendText}>Locked</Text>
             </View>
           </View>
@@ -144,13 +148,17 @@ export default function ProfileScreen() {
           </View>
         </View>
         
+        <AccountSection name={profile?.name ?? ''} email={profile?.email ?? ''} onProfileChanged={fetchProfile} />
+        <ThemeSelector />
+        <SecuritySection />
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -203,7 +211,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   levelBadge: {
-    backgroundColor: 'rgba(57, 255, 20, 0.1)',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,

@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // con pooler: lo usa la app
+  directUrl = env("DATABASE_URL_UNPOOLED") // conexión directa: la usa `prisma db push` / migraciones
 }
 
 model User {
@@ -22,6 +23,34 @@ model User {
   lastPlay  DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  role           String    @default("user") // "user" | "admin"
+  pushToken      String?   // Expo push token del dispositivo
+  lastReminderAt DateTime? // último recordatorio de racha enviado
+
+  followers Follow[]        @relation("followed")
+  following Follow[]        @relation("follower")
+  resets    PasswordReset[]
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("followed", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Lesson {

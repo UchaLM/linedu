@@ -23,3 +23,12 @@ Thumbs.db
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Secrets
+.env
+backend/.env
+frontend/.env
+
+# Base de datos local (no se sube)
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
