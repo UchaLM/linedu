@@ -32,3 +32,6 @@ frontend/.env
 # Base de datos local (no se sube)
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
+
+# Material de entrega (contiene credenciales, no se sube)
+entrega-privada/
