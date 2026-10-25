@@ -155,11 +155,16 @@ export const forgotPassword = async (req: Request, res: Response) => {
       await prisma.passwordReset.create({
         data: { userId: user.id, codeHash: await hashPassword(code), expiresAt: new Date(Date.now() + RESET_CODE_TTL_MS) },
       });
-      await sendMail(
-        user.email,
-        'LINEDU - your password reset code',
-        `Your LINEDU code is ${code}. It expires in 15 minutes.\nIf you did not ask for it, ignore this email.`,
-      ).catch((error) => console.error('Could not send reset email', error));
+      try {
+        await sendMail(
+          user.email,
+          'LINEDU - your password reset code',
+          `Your LINEDU code is ${code}. It expires in 15 minutes.\nIf you did not ask for it, ignore this email.`,
+        );
+      } catch (error) {
+        console.error('Could not send reset email', error);
+        return res.status(502).json({ error: 'We could not send the email right now. Try again in a few minutes.' });
+      }
     }
     res.json({ message: 'If that email is registered, we sent you a 6-digit code.' });
   } catch (error) {

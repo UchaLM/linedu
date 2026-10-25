@@ -1,6 +1,8 @@
 import nodemailer from 'nodemailer';
 
-const smtpConfigured = () => Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+const SMTP_TIMEOUT_MS = 10000;
+
+const smtpConfigured =() => Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
 /**
  * Envía un email por SMTP (Gmail con contraseña de aplicación, Brevo, etc.).
@@ -18,6 +20,10 @@ export async function sendMail(to: string, subject: string, text: string): Promi
     port: Number(process.env.SMTP_PORT) || 587,
     secure: Number(process.env.SMTP_PORT) === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    // Si el hosting bloquea el puerto SMTP, fallar en segundos en vez de colgar la petición minutos.
+    connectionTimeout: SMTP_TIMEOUT_MS,
+    greetingTimeout: SMTP_TIMEOUT_MS,
+    socketTimeout: SMTP_TIMEOUT_MS,
   });
   await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to, subject, text });
   return true;
